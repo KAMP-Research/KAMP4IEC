@@ -65,6 +65,32 @@ public class IECArchitectureVersion extends AbstractArchitectureVersion<Abstract
 		}
 		this._hmiModificationRepository = params.hmiModificationMarksRepository;		
 	}
+	
+	public IECArchitectureVersion(String name, Repository iecRepository, Configuration configuration,
+			IECFieldOfActivityAnnotationsRepository fieldOfActivityRepository, 
+			AbstractKAMP4IECModificationRepository<?> iecModificationRepository) {
+		super(name,iecModificationRepository);
+		// Some of the files describing the architecture might not exist; prevent NullPointer
+		// in propagation algorithm by setting newly created objects (whose EReferences are
+		// instantiated with empty collections, so the algorithm can handle them)
+		if (iecRepository == null) {
+			_IECRepository = IECRepositoryFactory.eINSTANCE.
+					createRepository();
+		}
+		this._IECRepository = iecRepository;
+		if (configuration == null) {
+			_configuration = IECModelFactory.eINSTANCE.
+					createConfiguration();
+		}
+		this._configuration = configuration;
+		if (fieldOfActivityRepository == null) {
+			_fieldOfActivityRepository = IECFieldOfActivityAnnotationsFactory.eINSTANCE.
+					createIECFieldOfActivityAnnotationsRepository();
+		}
+		this._fieldOfActivityRepository = fieldOfActivityRepository;	
+		_hmiRepository = Kamp4hmiModelFactory.eINSTANCE.createRepository();
+		_hmiModificationRepository = HMIModificationmarksFactory.eINSTANCE.createHMIModificationMarksRepository();		
+	}
 
 	public Repository getIECRepository() {
 		return _IECRepository;
