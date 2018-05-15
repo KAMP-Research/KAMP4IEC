@@ -2,6 +2,8 @@ package edu.kit.ipd.sdq.kamp4iec.core;
 
 import java.util.NoSuchElementException;
 
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.ActorStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.SystemStep;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModel.Configuration;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModel.Program;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.Function;
@@ -25,7 +27,10 @@ public enum IECModificationType {
 		INTERFACE,
 		ABSTRACTMETHOD,
 		ABSTRACTPROPERTY,
-		GLOBALVARIABLE;
+		GLOBALVARIABLE,
+		
+		SYSTEMSTEP,
+		ACTORSTEP;
 	public static IECModificationType getFomComponent(IECComponent comp) {
 		if(comp instanceof Configuration) {
 			return CONFIGURATION;
@@ -47,6 +52,10 @@ public enum IECModificationType {
 			return ABSTRACTPROPERTY;
 		} else if(comp instanceof GlobalVariable) {
 			return GLOBALVARIABLE;
+		} else if(comp instanceof SystemStep) {
+			return SYSTEMSTEP;
+		} else if(comp instanceof ActorStep) {
+			return ACTORSTEP;
 		} else {
 			throw new NoSuchElementException("IEC Component of Type <" + comp.toString() + "> not found.");
 		}

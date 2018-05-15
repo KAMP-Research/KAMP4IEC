@@ -1,5 +1,6 @@
 package edu.kit.ipd.sdq.kamp4iec.core;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -8,6 +9,13 @@ import java.util.Map;
 import java.util.Set;
 
 import edu.kit.ipd.sdq.kamp.util.MapUtil;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.ActorStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.For;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.HMIElement;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.If;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.Mode;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.Step;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.SystemStep;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModel.Configuration;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModel.Program;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.Function;
@@ -19,6 +27,7 @@ import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECComponent;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECInterface;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECMethod;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECProperty;
+import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.Identifier;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IsMethod;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IsProperty;
 
@@ -957,6 +966,126 @@ public class IECArchitectureModelLookup {
 		return results;
 	}
 	
+	//KAMP4HMI lookup methods
+
+	public static Map<SystemStep, Set<FunctionBlock>> lookUpSystemStepsOfFunctionBlock(
+			IECArchitectureVersion version, Collection<FunctionBlock> functionBlocks) {
+		Map<SystemStep, Set<FunctionBlock>> results = new HashMap<SystemStep, Set<FunctionBlock>>();
+		for(HMIElement hmiElement : version.getHMIRepository().getHmiElement()) {
+			if(hmiElement instanceof SystemStep) {
+				for(Mode mode: ((SystemStep)hmiElement).getMode()) {
+					for(FunctionBlock accessed: mode.getAffectedFunctionBlocks()) {
+						for(FunctionBlock toCompare: functionBlocks) {
+							putOrAddToMap(results, (SystemStep)hmiElement, accessed, toCompare);
+						}
+					}
+				}
+			}
+		}
+		return results;
+	}
+
+	public static Map<SystemStep, Set<IECMethod>> lookUpSystemStepsOfMethod(
+			IECArchitectureVersion version, Collection<IECMethod> methods) {
+		Map<SystemStep, Set<IECMethod>> results = new HashMap<SystemStep, Set<IECMethod>>();
+		for(HMIElement hmiElement : version.getHMIRepository().getHmiElement()) {
+			if(hmiElement instanceof SystemStep) {
+				for(Mode mode: ((SystemStep)hmiElement).getMode()) {
+					for(IsMethod accessed: mode.getAffectedMethods()) {
+						if(accessed instanceof IECMethod) {
+							for(IECMethod toCompare: methods) {
+								putOrAddToMap(results, (SystemStep)hmiElement, (IECMethod)accessed, toCompare);
+							}
+						}
+					}
+				}
+			}
+		}
+		return results;
+	}
+
+	public static Map<ActorStep, Set<SystemStep>> lookUpActorStepsOfSystemStep(
+			IECArchitectureVersion version, Collection<SystemStep> systemSteps) {
+		Map<ActorStep, Set<SystemStep>> results = new HashMap<ActorStep, Set<SystemStep>>();
+		for(SystemStep toCompare : systemSteps) {
+			if(toCompare.getSuccessor() instanceof If) {
+				HMIElement tSuccessor = ((If)toCompare).getTrueSuccessor();
+				HMIElement fSuccessor = ((If)toCompare).getFalseSuccessor();
+				if(tSuccessor instanceof ActorStep)
+					putOrAddToMap(results, (ActorStep)tSuccessor, toCompare, toCompare);
+				if(fSuccessor instanceof ActorStep)
+					putOrAddToMap(results, (ActorStep)fSuccessor, toCompare, toCompare);
+			} else if (toCompare.getSuccessor() instanceof For) {
+				HMIElement tSuccessor = ((For)toCompare).getLoopSuccessor();
+				HMIElement fSuccessor = ((For)toCompare).getLoopEndSuccessor();
+				if(tSuccessor instanceof ActorStep)
+					putOrAddToMap(results, (ActorStep)tSuccessor, toCompare, toCompare);
+				if(fSuccessor instanceof ActorStep)
+					putOrAddToMap(results, (ActorStep)fSuccessor, toCompare, toCompare);
+			} else if (toCompare.getSuccessor() instanceof ActorStep) {
+				putOrAddToMap(results, (ActorStep)toCompare.getSuccessor(), toCompare, toCompare);
+			}
+		}
+		return results;
+	}
+
+	public static Map<ActorStep, Set<HMIElement>> lookUpActorStepsOfActorStep(
+			IECArchitectureVersion version, Collection<ActorStep> actorSteps) {
+		Map<ActorStep, Set<HMIElement>> results = new HashMap<ActorStep, Set<HMIElement>>();
+		for(ActorStep toCompare : actorSteps) {
+			if(toCompare.getSuccessor() instanceof If) {
+					HMIElement tSuccessor = ((If)toCompare.getSuccessor()).getTrueSuccessor();
+					HMIElement fSuccessor = ((If)toCompare.getSuccessor()).getFalseSuccessor();
+					if(tSuccessor instanceof ActorStep)
+						putOrAddToMap(results, (ActorStep)tSuccessor, toCompare.getSuccessor(), toCompare.getSuccessor());
+					if(fSuccessor instanceof ActorStep)
+						putOrAddToMap(results, (ActorStep)fSuccessor, toCompare.getSuccessor(), toCompare.getSuccessor());
+			} else if (toCompare.getSuccessor() instanceof For) {
+					HMIElement tSuccessor = ((For)toCompare.getSuccessor()).getLoopSuccessor();
+					HMIElement fSuccessor = ((For)toCompare.getSuccessor()).getLoopEndSuccessor();
+					if(tSuccessor instanceof ActorStep)
+						putOrAddToMap(results, (ActorStep)tSuccessor, toCompare.getSuccessor(), toCompare.getSuccessor());
+					else if (!(tSuccessor instanceof SystemStep)) {
+						results.putAll(lookUpActorStepsOfHMIElement(version, tSuccessor));
+					}
+					if(fSuccessor instanceof ActorStep)
+						putOrAddToMap(results, (ActorStep)fSuccessor, toCompare, toCompare);
+					else if (!(tSuccessor instanceof SystemStep)) {
+						results.putAll(lookUpActorStepsOfHMIElement(version, fSuccessor));
+					}
+			} else if (toCompare.getSuccessor() instanceof ActorStep) {
+					putOrAddToMap(results, (ActorStep)toCompare.getSuccessor(), toCompare, toCompare);
+			}
+		}
+		return results;
+	}
+	
+	public static Map<ActorStep, Set<HMIElement>> lookUpActorStepsOfHMIElement(
+			IECArchitectureVersion version, HMIElement hmiElement) {
+		Map<ActorStep, Set<HMIElement>> results = new HashMap<ActorStep, Set<HMIElement>>();
+		if(hmiElement instanceof If) {
+			HMIElement tSuccessor = ((If)hmiElement).getTrueSuccessor();
+			HMIElement fSuccessor = ((If)hmiElement).getFalseSuccessor();
+			if(tSuccessor instanceof ActorStep) {
+				putOrAddToMap(results, (ActorStep)tSuccessor, hmiElement, hmiElement);
+			} else if (!(tSuccessor instanceof SystemStep)) {
+				results.putAll(lookUpActorStepsOfHMIElement(version, fSuccessor));
+			}
+		} else 
+			if(hmiElement instanceof For) {
+				HMIElement tSuccessor = ((For)hmiElement).getLoopSuccessor();
+				HMIElement fSuccessor = ((For)hmiElement).getLoopEndSuccessor();
+				if(tSuccessor instanceof ActorStep) {
+					putOrAddToMap(results, (ActorStep)tSuccessor, hmiElement, hmiElement);
+				} else if (!(tSuccessor instanceof SystemStep)) {
+					results.putAll(lookUpActorStepsOfHMIElement(version, fSuccessor));
+				}
+			}
+		return results;
+	}
+	
+	
+	
 //	/**
 //	 * Looks up the {@link Configuration} of the {@link IECArchitectureVersion} which access the given {@link IECMethod}s and lists it in a Map.
 //	 * @param version The current {@link IECArchitectureVersion}.
@@ -996,7 +1125,13 @@ public class IECArchitectureModelLookup {
 		return results;
 	}
 	
-	private static <X extends IECComponent, Y extends IECComponent> void putOrAddToMap(Map<X, Set<Y>> map, X key, Y accessedValue, Y comparedValue) {
+//	private static <X extends IECComponent, Y extends IECComponent> void putOrAddToMap(Map<X, Set<Y>> map, X key, Y accessedValue, Y comparedValue) {
+//		if (accessedValue.getId().equals(comparedValue.getId())) {
+//			MapUtil.putOrAddToMap(map, key, comparedValue);
+//		}
+//	}
+	
+	private static <X extends Identifier, Y extends Identifier> void putOrAddToMap(Map<X, Set<Y>> map, X key, Y accessedValue, Y comparedValue) {
 		if (accessedValue.getId().equals(comparedValue.getId())) {
 			MapUtil.putOrAddToMap(map, key, comparedValue);
 		}

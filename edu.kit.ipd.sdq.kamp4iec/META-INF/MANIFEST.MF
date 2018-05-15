@@ -14,7 +14,9 @@ Require-Bundle: org.eclipse.ui,
  edu.kit.ipd.sdq.kamp,
  edu.kit.ipd.sdq.kamp4iec.model.fieldofactivityannotations;bundle-version="0.1.0",
  edu.kit.ipd.sdq.kamp4iec.model.modificationmarks;bundle-version="0.1.0",
- edu.kit.ipd.sdq.kamp4iec.model.repo
+ edu.kit.ipd.sdq.kamp4iec.model.repo,
+ edu.kit.ipd.sdq.kamp4hmi.model;bundle-version="1.0.0",
+ edu.kit.ipd.sdq.kamp4hmi.model.modificationmarks;bundle-version="0.1.0"
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8

@@ -16,6 +16,8 @@ import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECAbstractProperty;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECInterface;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECMethod;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECProperty;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.ActorStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.SystemStep;
 
 public enum IECActivityElementType implements AbstractActivityElementType {
 	//IEC-related
@@ -29,6 +31,9 @@ public enum IECActivityElementType implements AbstractActivityElementType {
 	PROPERTY(IECProperty.class),
 	ABSTRACTMETHOD(IECAbstractMethod.class),
 	METHOD(IECMethod.class),
+	//HMI-related
+	ACTORSTEP(ActorStep.class),
+	SYSTEMSTEP(SystemStep.class),
 	// annotation-related
 	SOURCECODEFILES(IECSourceFile.class),
 	METADATAFILES(IECMetadataFile.class),

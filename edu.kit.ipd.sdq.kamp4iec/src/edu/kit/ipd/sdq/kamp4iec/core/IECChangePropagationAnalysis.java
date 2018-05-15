@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.ecore.EObject;
 
 import edu.kit.ipd.sdq.kamp.architecture.ArchitectureModelLookup;
@@ -19,6 +20,17 @@ import edu.kit.ipd.sdq.kamp.model.modificationmarks.AbstractModification;
 import edu.kit.ipd.sdq.kamp.model.modificationmarks.AbstractSeedModifications;
 import edu.kit.ipd.sdq.kamp.model.modificationmarks.ChangePropagationStep;
 import edu.kit.ipd.sdq.kamp.propagation.AbstractChangePropagationAnalysis;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIChangePropagationDueToSoftwareDependency;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIModificationMarksRepository;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIModificationRepository;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIModificationmarksFactory;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIModifyActorStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIModifySystemStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMISeedModifications;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIStepModification;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.ActorStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.HMIElement;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.SystemStep;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModel.Configuration;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModel.Program;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.Function;
@@ -30,6 +42,7 @@ import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECComponent;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECInterface;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECMethod;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECProperty;
+import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.Identifier;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECChangePropagationDueToDataDependency;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECModificationRepository;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECModificationmarksFactory;
@@ -67,7 +80,9 @@ import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.impl.IECSeedModificat
 public class IECChangePropagationAnalysis implements AbstractChangePropagationAnalysis<IECArchitectureVersion> {
 
 	private Collection<IECComponent> seedModifications = new HashSet<IECComponent>();
+	private Collection<HMIElement> hmiSeedModifications = new HashSet<HMIElement>();
 	private IECChangePropagationDueToDataDependency changePropagationDueToDataDependencies;
+	private HMIChangePropagationDueToSoftwareDependency changePropagationDueToSoftwareDependency;
 
 	@Override
 	public void runChangePropagationAnalysis(IECArchitectureVersion version) {
@@ -83,9 +98,24 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 	
 	private void prepareAnalysis(IECArchitectureVersion version) {
 		this.setIECChangePropagationDueToDataDependencies(IECModificationmarksFactory.eINSTANCE.createIECChangePropagationDueToDataDependency());
+		this.setHMIChangePropagationDueToSoftwareDependencies(HMIModificationmarksFactory.eINSTANCE.createHMIChangePropagationDueToSoftwareDependency());
 		
-		version.getModificationMarkRepository().getChangePropagationSteps().add(
-				this.getIECChangePropagationDueToDataDependencies());
+
+		if(version.getModificationMarkRepository() != null && version.getModificationMarkRepository().getChangePropagationSteps() != null) {			
+			version.getModificationMarkRepository().getChangePropagationSteps().add(
+					this.getIECChangePropagationDueToDataDependencies());
+		}
+		if(version.getHMIRepository() != null && version.getHMIModificationRepository() != null) {
+			if(version.getHMIModificationRepository().getChangePropagationSteps() != null) {
+				//remove old modifications
+				for (Iterator<ChangePropagationStep> it = version.getHMIModificationRepository().getChangePropagationSteps().iterator(); it.hasNext(); ) {
+					ChangePropagationStep step = it.next();
+					it.remove();
+				}
+				version.getHMIModificationRepository().getChangePropagationSteps().add(
+						this.getHMIChangePropagationDueToSoftwareDependency());
+			}
+		}
 		
 		markSeedModifications(version);
 	}
@@ -111,26 +141,53 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 		IECSeedModifications seedMods = version.getModificationMarkRepository().getSeedModifications();
 		for(IECComponent component : seedModifications) {
 			if(component instanceof GlobalVariable) {
+				if(!modificationListContainsElement(seedMods.getGlobalVariableModifications(), (GlobalVariable)component))
 				seedMods.getGlobalVariableModifications().add(IECModificationFactory.createIECModification((GlobalVariable) component, new HashSet<IECComponent>(), false)); 
 			} else if (component instanceof FunctionBlock) {
-				seedMods.getFunctionBlockModifications().add(IECModificationFactory.createIECModification((FunctionBlock) component, new HashSet<IECComponent>(), false)); 
+				if(!modificationListContainsElement(seedMods.getFunctionBlockModifications(), (FunctionBlock)component))
+				seedMods.getFunctionBlockModifications().add(IECModificationFactory.createIECModification((FunctionBlock) component, new HashSet<IECComponent>(), false));
 			} else if (component instanceof Function) {
 				seedMods.getFunctionModifications().add(IECModificationFactory.createIECModification((Function) component, new HashSet<IECComponent>(), false)); 
 			} else if (component instanceof IECProperty) {
+				if(!modificationListContainsElement(seedMods.getPropertyModifications(), (IECProperty)component))
 				seedMods.getPropertyModifications().add(IECModificationFactory.createIECModification((IECProperty) component, new HashSet<IECComponent>(), false)); 
 			} else if (component instanceof IECMethod) {
+				if(!modificationListContainsElement(seedMods.getMethodModifications(), (IECMethod)component))
 				seedMods.getMethodModifications().add(IECModificationFactory.createIECModification((IECMethod) component, new HashSet<IECComponent>(), false)); 
 			} else if (component instanceof IECAbstractProperty) {
+				if(!modificationListContainsElement(seedMods.getAbstractPropertyModifications(), (IECAbstractProperty)component))
 				seedMods.getAbstractPropertyModifications().add(IECModificationFactory.createIECModification((IECAbstractProperty) component, new HashSet<IECComponent>(), false)); 
 			} else if (component instanceof IECAbstractMethod) {
+				if(!modificationListContainsElement(seedMods.getAbstractMethodModifications(), (IECAbstractMethod)component))
 				seedMods.getAbstractMethodModifications().add(IECModificationFactory.createIECModification((IECAbstractMethod) component, new HashSet<IECComponent>(), false)); 
 			} else if (component instanceof IECInterface) {
+				if(!modificationListContainsElement(seedMods.getInterfaceModifications(), (IECInterface)component))
 				seedMods.getInterfaceModifications().add(IECModificationFactory.createIECModification((IECInterface) component, new HashSet<IECComponent>(), false)); 
 			} else if (component instanceof Program) {
+				if(!modificationListContainsElement(seedMods.getProgramModifications(), (Program)component))
 				seedMods.getProgramModifications().add(IECModificationFactory.createIECModification((Program) component, new HashSet<IECComponent>(), false)); 
 			}
 		}
 		((IECModificationRepository) version.getModificationMarkRepository()).setSeedModifications(seedMods);
+
+		if(version.getHMIRepository() != null && version.getHMIModificationRepository() != null) {
+			for(HMIModifyActorStep actorStep : version.getHMIModificationRepository().getSeedModifications().getActorStepModification())
+				hmiSeedModifications.add(actorStep.getAffectedElement());
+			for(HMIModifySystemStep systemStep : version.getHMIModificationRepository().getSeedModifications().getSystemStepModification())
+				hmiSeedModifications.add(systemStep.getAffectedElement());
+			
+			HMISeedModifications hmiSeedMods = version.getHMIModificationRepository().getSeedModifications();
+			for(HMIElement element : hmiSeedModifications) {
+				if(element instanceof ActorStep) {
+					if(!modificationListContainsElement(hmiSeedMods.getActorStepModification(), (ActorStep)element))
+					hmiSeedMods.getActorStepModification().add(IECModificationFactory.createHMIModification((ActorStep)element, new HashSet<Identifier>(), false));
+				} else if(element instanceof SystemStep) {
+					if(!modificationListContainsElement(hmiSeedMods.getSystemStepModification(), (SystemStep)element))
+					hmiSeedMods.getSystemStepModification().add(IECModificationFactory.createHMIModification((SystemStep)element, new HashSet<Identifier>(), false));
+				}
+			}
+			((HMIModificationMarksRepository) version.getHMIModificationRepository()).setSeedModifications(hmiSeedMods);
+		}
 	}
 	
 	/**
@@ -257,10 +314,29 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 		calculateAndMarkPropertyToProgramPropagation(version, elementsMarkedInThisStep, IECModificationType.SEED);
 		elementsMarkedInThisStep = new ArrayList<IECComponent>();
 		
-		//If no at all changes: remove top-level element from tree
-		if (this.getIECChangePropagationDueToDataDependencies().eContents().isEmpty()) {			
-			version.getModificationMarkRepository().getChangePropagationSteps().remove(
-					this.getIECChangePropagationDueToDataDependencies());	
+		//HMI propagation
+
+		if(version.getHMIRepository() != null && version.getHMIModificationRepository() != null) {
+		
+			ArrayList<HMIElement> hmiElementsMarkedInThisStep = new ArrayList<HMIElement>();
+			calculateAndMarkFunctionBlockToSystemStepPropagation(version, hmiElementsMarkedInThisStep, IECModificationType.SEED);
+			calculateAndMarkMethodToSystemStepPropagation(version, hmiElementsMarkedInThisStep, IECModificationType.SEED);
+			for(HMIModifyActorStep mod : version.getHMIModificationRepository().getSeedModifications().getActorStepModification()) {
+				hmiElementsMarkedInThisStep.add(mod.getAffectedElement());
+			}
+			for(HMIModifySystemStep mod : version.getHMIModificationRepository().getSeedModifications().getSystemStepModification()) {
+				hmiElementsMarkedInThisStep.add(mod.getAffectedElement());
+			}
+			this.setHmiSeedModifications(hmiElementsMarkedInThisStep);
+			calculateAndMarkSystemStepToActorStepPropagation(version, hmiElementsMarkedInThisStep, IECModificationType.SEED);
+			calculateAndMarkActorStepToActorStepPropagation(version, hmiElementsMarkedInThisStep, IECModificationType.SEED);
+			
+			
+			//If no at all changes: remove top-level element from tree
+			if (this.getIECChangePropagationDueToDataDependencies().eContents().isEmpty()) {			
+				version.getModificationMarkRepository().getChangePropagationSteps().remove(
+						this.getIECChangePropagationDueToDataDependencies());	
+			}
 		}
 	}
 	
@@ -1870,6 +1946,136 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 		}
 	}
 	
+	//HMI propagations
+	
+	protected void calculateAndMarkFunctionBlockToSystemStepPropagation(IECArchitectureVersion version,
+			List<HMIElement> elementsMarkedInThisStep, IECModificationType lastModification) {
+		List<FunctionBlock> markedFunctionBlocks = new ArrayList<>();
+		List<IECComponent> allMarkedIecComponents = new ArrayList<>();
+		allMarkedIecComponents.addAll(getAllChangedComponents());
+		allMarkedIecComponents.addAll(getSeedModifications());
+		for(IECComponent marked : allMarkedIecComponents) {
+			if(marked instanceof FunctionBlock) {
+				markedFunctionBlocks.add((FunctionBlock) marked);
+			}
+		}
+		Map<SystemStep, Set<FunctionBlock>> elementsToBeMarked = IECArchitectureModelLookup.
+				lookUpSystemStepsOfFunctionBlock(version, markedFunctionBlocks);
+
+		lastModification = IECModificationType.FUNCTIONBLOCK;
+		for(Map.Entry<SystemStep, Set<FunctionBlock>> elementsToBeMarkedEntry: 
+		 	elementsToBeMarked.entrySet()) {
+		 if(componentAlreadyMarked(elementsToBeMarkedEntry.getKey())) {
+			 getSystemStepModification(elementsToBeMarkedEntry.getKey()).getCausingElements().addAll(elementsToBeMarkedEntry.getValue());
+		 } else {
+			HMIModifySystemStep modification = HMIModificationmarksFactory.eINSTANCE.createHMIModifySystemStep();
+			modification.setToolderived(true);
+			modification.setAffectedElement(elementsToBeMarkedEntry.getKey());
+			modification.getCausingElements().addAll(elementsToBeMarkedEntry.getValue());
+			
+			elementsMarkedInThisStep.add(elementsToBeMarkedEntry.getKey());
+//			this.getMarkedComponents().add(elementsToBeMarkedEntry.getKey());
+			this.getHMIChangePropagationDueToSoftwareDependency().getSystemStepModification().
+					add(modification);
+		 }
+		}
+	}
+	
+	protected void calculateAndMarkMethodToSystemStepPropagation(IECArchitectureVersion version,
+			List<HMIElement> elementsMarkedInThisStep, IECModificationType lastModification) {
+		List<IECMethod> markedMethods = new ArrayList<>();
+		List<IECComponent> allMarkedIecComponents = new ArrayList<>();
+		allMarkedIecComponents.addAll(getAllChangedComponents());
+		allMarkedIecComponents.addAll(getSeedModifications());
+		for(IECComponent marked : allMarkedIecComponents) {
+			if(marked instanceof IECMethod) {
+				markedMethods.add((IECMethod) marked);
+			}
+		}
+		Map<SystemStep, Set<IECMethod>> elementsToBeMarked = IECArchitectureModelLookup.
+				lookUpSystemStepsOfMethod(version, markedMethods);
+
+		lastModification = IECModificationType.METHOD;
+		for(Map.Entry<SystemStep, Set<IECMethod>> elementsToBeMarkedEntry: 
+		 	elementsToBeMarked.entrySet()) {
+		 if(componentAlreadyMarked(elementsToBeMarkedEntry.getKey())) {
+			 getSystemStepModification(elementsToBeMarkedEntry.getKey()).getCausingElements().addAll(elementsToBeMarkedEntry.getValue());
+		 } else {
+			HMIModifySystemStep modification = HMIModificationmarksFactory.eINSTANCE.createHMIModifySystemStep();
+			modification.setToolderived(true);
+			modification.setAffectedElement(elementsToBeMarkedEntry.getKey());
+			modification.getCausingElements().addAll(elementsToBeMarkedEntry.getValue());
+			
+			elementsMarkedInThisStep.add(elementsToBeMarkedEntry.getKey());
+//			this.getMarkedComponents().add(elementsToBeMarkedEntry.getKey());
+			this.getHMIChangePropagationDueToSoftwareDependency().getSystemStepModification().
+					add(modification);
+		 }
+		}
+	}
+	
+	protected void calculateAndMarkSystemStepToActorStepPropagation(IECArchitectureVersion version,
+			List<HMIElement> elementsMarkedInThisStep, IECModificationType lastModification) {
+		List<SystemStep> steps = new ArrayList<>();
+		for(HMIElement marked : getHmiSeedModifications()) {
+			if(marked instanceof SystemStep) {
+				steps.add((SystemStep) marked);
+			}
+		}
+		Map<ActorStep, Set<SystemStep>> elementsToBeMarked = IECArchitectureModelLookup.
+				lookUpActorStepsOfSystemStep(version, steps);
+
+		lastModification = IECModificationType.SYSTEMSTEP;
+		for(Map.Entry<ActorStep, Set<SystemStep>> elementsToBeMarkedEntry: 
+		 	elementsToBeMarked.entrySet()) {
+		 if(componentAlreadyMarked(elementsToBeMarkedEntry.getKey())) {
+			 getSystemStepModification(elementsToBeMarkedEntry.getKey()).getCausingElements().addAll(elementsToBeMarkedEntry.getValue());
+		 } else {
+			HMIModifyActorStep modification = HMIModificationmarksFactory.eINSTANCE.createHMIModifyActorStep();
+			modification.setToolderived(true);
+			modification.setAffectedElement(elementsToBeMarkedEntry.getKey());
+			modification.getCausingElements().addAll(elementsToBeMarkedEntry.getValue());
+			
+			elementsMarkedInThisStep.add(elementsToBeMarkedEntry.getKey());
+//			this.getMarkedComponents().add(elementsToBeMarkedEntry.getKey());
+			this.getHMIChangePropagationDueToSoftwareDependency().getActorStepModification().
+					add(modification);
+			continueHMIPropagation(version, elementsToBeMarkedEntry.getKey(), elementsMarkedInThisStep, lastModification);
+		 }
+		}
+	}
+	
+	protected void calculateAndMarkActorStepToActorStepPropagation(IECArchitectureVersion version,
+			List<HMIElement> elementsMarkedInThisStep, IECModificationType lastModification) {
+		List<ActorStep> steps = new ArrayList<>();
+		for(HMIElement marked : getHmiSeedModifications()) {
+			if(marked instanceof ActorStep) {
+				steps.add((ActorStep) marked);
+			}
+		}
+		Map<ActorStep, Set<HMIElement>> elementsToBeMarked = IECArchitectureModelLookup.
+				lookUpActorStepsOfActorStep(version, steps);
+
+		lastModification = IECModificationType.ACTORSTEP;
+		for(Map.Entry<ActorStep, Set<HMIElement>> elementsToBeMarkedEntry: 
+		 	elementsToBeMarked.entrySet()) {
+		 if(componentAlreadyMarked(elementsToBeMarkedEntry.getKey())) {
+			 getSystemStepModification(elementsToBeMarkedEntry.getKey()).getCausingElements().addAll(elementsToBeMarkedEntry.getValue());
+		 } else {
+			HMIModifyActorStep modification = HMIModificationmarksFactory.eINSTANCE.createHMIModifyActorStep();
+			modification.setToolderived(true);
+			modification.setAffectedElement(elementsToBeMarkedEntry.getKey());
+			modification.getCausingElements().addAll(elementsToBeMarkedEntry.getValue());
+			
+			elementsMarkedInThisStep.add(elementsToBeMarkedEntry.getKey());
+//			this.getMarkedComponents().add(elementsToBeMarkedEntry.getKey());
+			this.getHMIChangePropagationDueToSoftwareDependency().getActorStepModification().
+					add(modification);
+			continueHMIPropagation(version, elementsToBeMarkedEntry.getKey(), elementsMarkedInThisStep, lastModification);
+		 }
+		}
+	}
+	
 //	private  List<ModificationMarker> modificationPaths;
 //	
 //	private <T extends IECComponent> boolean isNewModification(IECArchitectureVersion version, T entry, List<IECComponent> elementsMarkedInThisStep, IECModificationType lastModification) {
@@ -1880,6 +2086,23 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 //			return true;
 //		}
 //	}
+	
+	public  <T extends HMIElement>void continueHMIPropagation(IECArchitectureVersion version, T entry, List<HMIElement> elementsMarkedInThisStep, IECModificationType lastModification) {
+		switch (lastModification) {
+		case FUNCTIONBLOCK:
+		case METHOD:
+		case SEED:
+			break;
+		case ACTORSTEP:
+			calculateAndMarkActorStepToActorStepPropagation(version, elementsMarkedInThisStep, lastModification);
+			break;
+		case SYSTEMSTEP:
+			break;
+		default:
+			break;
+		}
+		
+	}
 	
 	public <T extends IECComponent>void continuePropagation(IECArchitectureVersion version, T entry, List<IECComponent> elementsMarkedInThisStep, IECModificationType lastModification) {
 		switch (lastModification) {
@@ -2172,8 +2395,31 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 		return null;
 	}
 	
+	private HMIModifyActorStep getActorStepModification(HMIElement element) {
+		for(HMIModifyActorStep modification : this.getHMIChangePropagationDueToSoftwareDependency().getActorStepModification()) {
+			if(modification.getAffectedElement().getId().equals(element.getId()));
+				return modification;
+		}
+		return null;
+	}
+	
+	private HMIModifySystemStep getSystemStepModification(HMIElement element) {
+		for(HMIModifySystemStep modification : this.getHMIChangePropagationDueToSoftwareDependency().getSystemStepModification()) {
+			if(modification.getAffectedElement().getId().equals(element.getId()));
+				return modification;
+		}
+		return null;
+	}
+	
 	private boolean componentAlreadyMarked(IECComponent component) {
 		 for(IECComponent comp : getAllChangedComponents()) {
+			 if(component.getId().equals(comp.getId())) return true;
+		 }
+		 return false;
+	}
+	
+	private boolean componentAlreadyMarked(HMIElement component) {
+		 for(HMIElement comp : getAllChangedHMIElements()) {
 			 if(component.getId().equals(comp.getId())) return true;
 		 }
 		 return false;
@@ -2214,15 +2460,34 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 		return components;
 	}
 	
+	private List<HMIElement> getAllChangedHMIElements() {
+		List<HMIElement> elements = new ArrayList<>();
+		for(HMIModifyActorStep step : this.getHMIChangePropagationDueToSoftwareDependency().getActorStepModification()) {
+			elements.add(step.getAffectedElement());
+		}
+		for(HMIModifySystemStep step : this.getHMIChangePropagationDueToSoftwareDependency().getSystemStepModification()) {
+			elements.add(step.getAffectedElement());
+		}
+		return elements;
+	}
+	
 	public void postAnalysis(IECArchitectureVersion version) {
 	}
 	
 	public IECChangePropagationDueToDataDependency getIECChangePropagationDueToDataDependencies() {
 		return changePropagationDueToDataDependencies;
 	}
+	
+	public HMIChangePropagationDueToSoftwareDependency getHMIChangePropagationDueToSoftwareDependency() {
+		return changePropagationDueToSoftwareDependency;
+	}
 
 	public Collection<IECComponent> getSeedModifications() {
 		return seedModifications;
+	}
+
+	public Collection<HMIElement> getHMISeedModifications() {
+		return hmiSeedModifications;
 	}
 
 	public void setSeedModifications(Collection<IECComponent> markedComponents) {
@@ -2234,5 +2499,121 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 		this.changePropagationDueToDataDependencies = changePropagationDueToDataDependencies;
 	}
 
+	public void setHMIChangePropagationDueToSoftwareDependencies(
+			HMIChangePropagationDueToSoftwareDependency changePropagationDueToSoftwareDependency) {
+		this.changePropagationDueToSoftwareDependency = changePropagationDueToSoftwareDependency;
+	}
+
+	public Collection<HMIElement> getHmiSeedModifications() {
+		return hmiSeedModifications;
+	}
+
+	public void setHmiSeedModifications(Collection<HMIElement> hmiSeedModifications) {
+		this.hmiSeedModifications = hmiSeedModifications;
+	}
+	
+	public <S, T> boolean modificationContainsElement(AbstractModification<S, T> am, S element) {
+		return am.getAffectedElement().equals(element);
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyGlobalVariable> ml, GlobalVariable element) {
+		for(IECModifyGlobalVariable am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyFunctionBlock> ml, FunctionBlock element) {
+		for(IECModifyFunctionBlock am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyFunction> ml, Function element) {
+		for(IECModifyFunction am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyMethod> ml, IECMethod element) {
+		for(IECModifyMethod am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyAbstractMethod> ml, IECAbstractMethod element) {
+		for(IECModifyAbstractMethod am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyProperty> ml, IECProperty element) {
+		for(IECModifyProperty am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyAbstractProperty> ml, IECAbstractProperty element) {
+		for(IECModifyAbstractProperty am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyInterface> ml, IECInterface element) {
+		for(IECModifyInterface am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<IECModifyProgram> ml, Program element) {
+		for(IECModifyProgram am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<HMIModifyActorStep> ml, ActorStep element) {
+		for(HMIModifyActorStep am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean modificationListContainsElement(EList<HMIModifySystemStep> ml, SystemStep element) {
+		for(HMIModifySystemStep am : ml) {
+			if (am.getAffectedElement().equals(element)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	  
 
 }

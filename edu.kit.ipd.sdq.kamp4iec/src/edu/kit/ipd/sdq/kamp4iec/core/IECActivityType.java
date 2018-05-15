@@ -16,7 +16,8 @@ public enum IECActivityType implements AbstractActivityType {
 	RELEASEEXECUTION("Release execution"),
 	DEPLOYMENTCONFIGURATION("Deployment configuration"),
 	DEPLOYMENTEXECUTION("Deployment execution"),
-	STAFFRESPONSIBILITY("Responsible staff member");
+	STAFFRESPONSIBILITY("Responsible staff member"),
+	HMIMODIFICATIONMARK("Modify user interaction");
 	private final String name;
 	
 	private IECActivityType(String name) {

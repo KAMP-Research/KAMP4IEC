@@ -2,6 +2,11 @@ package edu.kit.ipd.sdq.kamp4iec.core;
 
 import java.util.Set;
 
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIModificationmarksFactory;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIModifyActorStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.HMIModificationmarks.HMIModifySystemStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.ActorStep;
+import edu.kit.ipd.sdq.kamp4hmi.model.Kamp4hmiModel.SystemStep;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModel.Configuration;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModel.Program;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECModificationmarksFactory;
@@ -24,6 +29,7 @@ import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECComponent;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECInterface;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECMethod;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECProperty;
+import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.Identifier;
 
 public class IECModificationFactory {
 	
@@ -101,6 +107,22 @@ public class IECModificationFactory {
 	
 	public static IECModifyFunction createIECModification(Function affected, Set<IECComponent> causing, boolean toolDerived) {
 		IECModifyFunction modification = IECModificationmarksFactory.eINSTANCE.createIECModifyFunction();
+		modification.setToolderived(toolDerived);
+		modification.setAffectedElement(affected);
+		modification.getCausingElements().addAll(causing);
+		return modification;
+	}
+	
+	public static HMIModifyActorStep createHMIModification(ActorStep affected, Set<Identifier> causing, boolean toolDerived) {
+		HMIModifyActorStep modification = HMIModificationmarksFactory.eINSTANCE.createHMIModifyActorStep();
+		modification.setToolderived(toolDerived);
+		modification.setAffectedElement(affected);
+		modification.getCausingElements().addAll(causing);
+		return modification;
+	}
+	
+	public static HMIModifySystemStep createHMIModification(SystemStep affected, Set<Identifier> causing, boolean toolDerived) {
+		HMIModifySystemStep modification = HMIModificationmarksFactory.eINSTANCE.createHMIModifySystemStep();
 		modification.setToolderived(toolDerived);
 		modification.setAffectedElement(affected);
 		modification.getCausingElements().addAll(causing);
