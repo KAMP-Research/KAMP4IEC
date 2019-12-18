@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            adaptable="true"
+            id="edu.kit.ipd.sdq.kamp4iec.ui.CreateSubalternativeContribution"
+            objectClass="org.eclipse.core.resources.IContainer">
+         <menu
+               icon="../edu.kit.ipd.sdq.kamp/icons/edit.png"
+               id="edu.kit.ipd.sdq.kamp4iec.menukamp"
+               label="KAMP4IEC Analysis">
+         </menu>
+         <action
+               class="edu.kit.ipd.sdq.kamp4iec.ui.CreateEmptyBaseModelAction"
+               icon="../edu.kit.ipd.sdq.kamp/icons/filenew.png"
+               id="edu.kit.ipd.sdq.kamp4iec.ui.IECCreateEmptyBaseModelActionID"
+               label="Create empty KAMP4IEC architecture"
+               menubarPath="kamp4iec">
+         </action>
+         <action
+               class="edu.kit.ipd.sdq.kamp4iec.ui.DeriveWorkplanAction"
+               icon="../edu.kit.ipd.sdq.kamp/icons/run.png"
+               id="edu.kit.ipd.sdq.kamp4iec.ui.IECDeriveWorkplanActionID"
+               label="Derive KAMP4IEC workplan"
+               menubarPath="kamp4iec">
+         </action>
+      </objectContribution>
+   </extension>
+
+</plugin>
