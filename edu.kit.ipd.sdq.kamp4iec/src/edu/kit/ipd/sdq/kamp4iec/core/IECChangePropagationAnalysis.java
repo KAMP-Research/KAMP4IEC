@@ -45,6 +45,7 @@ import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.IECProperty;
 import edu.kit.ipd.sdq.kamp4iec.model.IECRepository.Identifier;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECChangePropagationDueToDataDependency;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECModificationRepository;
+import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.AbstractKAMP4IECModificationRepository;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECModificationmarksFactory;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECModificationmarksPackage;
 import edu.kit.ipd.sdq.kamp4iec.model.IECModificationmarks.IECModifyAbstractMethod;
@@ -168,7 +169,7 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 				seedMods.getProgramModifications().add(IECModificationFactory.createIECModification((Program) component, new HashSet<IECComponent>(), false)); 
 			}
 		}
-		((IECModificationRepository) version.getModificationMarkRepository()).setSeedModifications(seedMods);
+		((AbstractKAMP4IECModificationRepository<IECSeedModifications>) version.getModificationMarkRepository()).setSeedModifications(seedMods);
 
 		if(version.getHMIRepository() != null && version.getHMIModificationRepository() != null) {
 			for(HMIModifyActorStep actorStep : version.getHMIModificationRepository().getSeedModifications().getActorStepModification())
@@ -2156,7 +2157,7 @@ public class IECChangePropagationAnalysis implements AbstractChangePropagationAn
 				calculateAndMarkPropertyToMethodPropagation(version, elementsMarkedInThisStep, IECModificationType.PROPERTY);
 				calculateAndMarkPropertyToProgramPropagation(version, elementsMarkedInThisStep, IECModificationType.PROPERTY);
 			} else if (entry instanceof Program) {
-//				calculateAndMarkProgramToConfigurationPropagation(version, elementsMarkedInThisStep); Nicht sinnvoll, Änderungen werden immer in Program angepasst
+//				calculateAndMarkProgramToConfigurationPropagation(version, elementsMarkedInThisStep); Nicht sinnvoll, ï¿½nderungen werden immer in Program angepasst
 			}
 			break;
 		case FUNCTIONBLOCK : 
