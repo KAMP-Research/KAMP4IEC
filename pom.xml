@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <parent>
+        <groupId>tools.mdsd</groupId>
+        <artifactId>eclipse-parent-product</artifactId>
+        <version>0.8.12</version>
+    </parent>
+
+    <properties>
+        <tycho.version>2.7.5</tycho.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>17</java.version>
+    </properties>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>edu.kit.ipd.sdq.kamp4iec</groupId>
+    <artifactId>parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>edu.kit.ipd.sdq.kamp4iec</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.edit</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.editor</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.fieldofactivityannotations</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.fieldofactivityannotations.edit</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.fieldofactivityannotations.editor</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.modificationmarks</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.modificationmarks.edit</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.modificationmarks.editor</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.repo</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.repo.edit</module>
+        <module>edu.kit.ipd.sdq.kamp4iec.model.repo.editor</module>
+        <module>features</module>
+        <module>releng</module>
+    </modules>
+
+    <repositories>
+        <repository>
+            <id>Eclipse 2023-03</id>
+            <layout>p2</layout>
+            <url>https://download.eclipse.org/releases/2023-03</url>
+        </repository>
+        <repository>
+            <id>Palladio 5.2.1</id>
+            <layout>p2</layout>
+            <url>https://updatesite.palladio-simulator.com/palladio-build-updatesite/releases/5.2.1/</url>
+        </repository>
+        <repository>
+            <id>EMF Profiles</id>
+            <layout>p2</layout>
+            <url>https://updatesite.palladio-simulator.com/palladio-thirdparty-emfprofiles/releases/latest/</url>
+        </repository>
+        <repository>
+            <id>KAMP</id>
+            <layout>p2</layout>
+            <url>https://kamp-research.github.io/KAMP/kamp/</url>
+        </repository>
+    </repositories>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>tycho-maven-plugin</artifactId>
+                <version>${tycho.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <pomDependencies>consider</pomDependencies>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>tycho-p2-plugin</artifactId>
+                <version>${tycho.version}</version>
+                <executions>
+                    <execution>
+                        <id>attached-p2-metadata</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>p2-metadata</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>target-platform-configuration</artifactId>
+                <version>${tycho.version}</version>
+                <configuration>
+                    <environments>
+                        <environment><os>linux</os><ws>gtk</ws><arch>x86_64</arch></environment>
+                        <environment><os>win32</os><ws>win32</ws><arch>x86_64</arch></environment>
+                        <environment><os>macosx</os><ws>cocoa</ws><arch>x86_64</arch></environment>
+                    </environments>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
